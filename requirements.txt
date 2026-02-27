@@ -7,3 +7,4 @@ hgboost>=1.0.0
 tensorflow>=2.10.0
 statsmodels>=0.13.0
 jupyter>=1.0.0
+catboost

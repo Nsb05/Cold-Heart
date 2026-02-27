@@ -68,8 +68,8 @@ Traditional energy forecasting relies on having historical data from the **same 
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/yourusername/cold-start-energy-prediction.git
-cd cold-start-energy-prediction
+git clone https://github.com/Nsb05/Cold-Heart
+cd Cold-Heart
 ```
 
 ### 2. Install dependencies
