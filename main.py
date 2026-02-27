@@ -38,7 +38,7 @@ warnings.filterwarnings("ignore")
 def print_header():
     """Print a stylized project header."""
     print("\n" + "=" * 60)
-    print("  🏠 Cold-Start Energy Consumption Prediction")
+    print("  Cold-Start Energy Consumption Prediction")
     print("  Train: 2019 │ Test: 2020 │ Target: t_kWh")
     print("=" * 60)
 
@@ -51,7 +51,7 @@ def run_pipeline():
     # --------------------------------------------------
     # 1. LOAD DATA
     # --------------------------------------------------
-    print("\n📂 Loading datasets...")
+    print("\n.....Loading datasets.....")
     df_2019 = load_data(DATA_2019_PATH)
     df_2020 = load_data(DATA_2020_PATH)
 
@@ -160,7 +160,7 @@ def run_pipeline():
     # 5. SUMMARY TABLE
     # --------------------------------------------------
     print("\n\n" + "=" * 70)
-    print("  📊 MODEL COMPARISON SUMMARY")
+    print("MODEL COMPARISON SUMMARY")
     print("=" * 70)
 
     summary_df = pd.DataFrame(all_results).T
@@ -207,7 +207,7 @@ def run_pipeline():
 
     plot_path = os.path.join(RESULTS_DIR, "model_comparison.png")
     plt.savefig(plot_path, bbox_inches="tight")
-    print(f"📈 Comparison plot saved to: {plot_path}")
+    print(f" Comparison plot saved to: {plot_path}")
     plt.close()
 
     # Plot 2: Bar chart of metrics
@@ -235,15 +235,15 @@ def run_pipeline():
 
     bar_path = os.path.join(RESULTS_DIR, "metrics_comparison.png")
     plt.savefig(bar_path, bbox_inches="tight")
-    print(f"📊 Metrics bar chart saved to: {bar_path}")
+    print(f" Metrics bar chart saved to: {bar_path}")
     plt.close()
 
     # Save results to CSV
     csv_path = os.path.join(RESULTS_DIR, "model_results.csv")
     summary_df.to_csv(csv_path)
-    print(f"💾 Results CSV saved to: {csv_path}")
+    print(f" Results CSV saved to: {csv_path}")
 
-    print("\n✅ Pipeline complete!\n")
+    print("\n Pipeline complete!\n")
 
 
 if __name__ == "__main__":

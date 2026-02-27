@@ -33,7 +33,8 @@ def train(X_train, y_train):
         verbose=HGBOOST_PARAMS["verbose"],
     )
 
-    model.xgboost_reg(X_train, y_train)
+    import numpy as np
+    model.xgboost_reg(X_train, np.array(y_train))
 
     return model
 
@@ -50,4 +51,5 @@ def predict(model, X_test):
         Array of predicted values.
     """
     result = model.predict(X_test)
-    return result["predict"].values
+    # hgboost.predict returns (y_pred, y_proba) tuple
+    return result[0]
