@@ -58,7 +58,7 @@ def run_pipeline():
     # --------------------------------------------------
     # 2. FEATURE ENGINEERING
     # --------------------------------------------------
-    print("🔧 Engineering features...")
+    print("...Engineering features...")
     df_2019 = add_features(df_2019)
     df_2020 = add_features(df_2020)
 
@@ -84,7 +84,7 @@ def run_pipeline():
     predictions = {}
 
     # ---- 1. Linear Regression ----
-    print("\n🔹 Training Linear Regression...")
+    print("\n...Training Linear Regression...")
     lr_model = linear_reg.train(X_train, y_train)
     pred_lr = linear_reg.predict(lr_model, X_test)
     all_results["Linear Regression"] = evaluate(y_test, pred_lr)
@@ -92,7 +92,7 @@ def run_pipeline():
     print_metrics(all_results["Linear Regression"], "Linear Regression")
 
     # ---- 2. XGBoost ----
-    print("\n🔹 Training XGBoost...")
+    print("\n...Training XGBoost...")
     xgb_model = xgboost_model.train(X_train, y_train)
     pred_xgb = xgboost_model.predict(xgb_model, X_test)
     all_results["XGBoost"] = evaluate(y_test, pred_xgb)
@@ -100,7 +100,7 @@ def run_pipeline():
     print_metrics(all_results["XGBoost"], "XGBoost")
 
     # ---- 3. SVR ----
-    print("\n🔹 Training SVR...")
+    print("\n...Training SVR...")
     svr_trained = svr_model.train(X_train, y_train)
     pred_svr = svr_model.predict(svr_trained, X_test)
     all_results["SVR"] = evaluate(y_test, pred_svr)
@@ -108,7 +108,7 @@ def run_pipeline():
     print_metrics(all_results["SVR"], "SVR")
 
     # ---- 4. LSTM ----
-    print("\n🔹 Training LSTM...")
+    print("\n...Training LSTM...")
     lstm_trained = lstm_model.train(X_train_seq, y_train_seq)
     pred_lstm = lstm_model.predict(lstm_trained, X_test_seq)
     all_results["LSTM"] = evaluate(y_test_seq, pred_lstm)
@@ -116,7 +116,7 @@ def run_pipeline():
     print_metrics(all_results["LSTM"], "LSTM")
 
     # ---- 5. CNN ----
-    print("\n🔹 Training CNN (1D)...")
+    print("\n...Training CNN (1D)...")
     cnn_trained = cnn_model.train(X_train_seq, y_train_seq)
     pred_cnn = cnn_model.predict(cnn_trained, X_test_seq)
     all_results["CNN (1D)"] = evaluate(y_test_seq, pred_cnn)
@@ -124,7 +124,7 @@ def run_pipeline():
     print_metrics(all_results["CNN (1D)"], "CNN (1D)")
 
     # ---- 6. GRU ----
-    print("\n🔹 Training GRU...")
+    print("\n...Training GRU...")
     gru_trained = gru_model.train(X_train_seq, y_train_seq)
     pred_gru = gru_model.predict(gru_trained, X_test_seq)
     all_results["GRU"] = evaluate(y_test_seq, pred_gru)
@@ -132,7 +132,7 @@ def run_pipeline():
     print_metrics(all_results["GRU"], "GRU")
 
     # ---- 7. BiLSTM ----
-    print("\n🔹 Training BiLSTM...")
+    print("\n...Training BiLSTM...")
     bilstm_trained = bilstm_model.train(X_train_seq, y_train_seq)
     pred_bilstm = bilstm_model.predict(bilstm_trained, X_test_seq)
     all_results["BiLSTM"] = evaluate(y_test_seq, pred_bilstm)
@@ -140,7 +140,7 @@ def run_pipeline():
     print_metrics(all_results["BiLSTM"], "BiLSTM")
 
     # ---- 8. HGBoost ----
-    print("\n🔹 Training HGBoost...")
+    print("\n...Training HGBoost...")
     hgb_model = hgboost_model.train(X_train, y_train)
     pred_hgb = hgboost_model.predict(hgb_model, X_test)
     all_results["HGBoost"] = evaluate(y_test, pred_hgb)
@@ -148,7 +148,7 @@ def run_pipeline():
     print_metrics(all_results["HGBoost"], "HGBoost")
 
     # ---- 9. ARIMA ----
-    print("\n🔹 Training ARIMA...")
+    print("\n...Training ARIMA...")
     arima_fitted = arima_model.train(df_2019[TARGET])
     pred_arima = arima_model.predict(arima_fitted, len(df_2020))
     pred_arima = pred_arima[:len(y_test)]
