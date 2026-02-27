@@ -1,0 +1,49 @@
+# ===== Data Files =====
+*.csv
+data/*.csv
+
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+
+# ===== Virtual Environment =====
+.venv/
+venv/
+env/
+ENV/
+
+# ===== Jupyter Notebooks =====
+.ipynb_checkpoints/
+
+# ===== IDE =====
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ===== OS =====
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ===== Results (regenerable) =====
+results/*.png
+results/*.jpg
+results/*.svg
+
+# ===== TensorFlow / Keras =====
+*.h5
+*.keras
+saved_models/
+logs/
+
+# ===== Misc =====
+*.log
+*.tmp
