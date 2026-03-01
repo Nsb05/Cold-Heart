@@ -3,15 +3,20 @@ LSTM (Long Short-Term Memory) model for energy prediction.
 
 Uses windowed sequences of past observations to predict
 the next timestep's energy consumption. Includes internal
-scaling for both features and target.
+scaling, gradient clipping, and adaptive callbacks for
+stable training across different data splits.
 """
 
 import numpy as np
+import tensorflow as tf
 from sklearn.preprocessing import StandardScaler
 from tensorflow import keras
-from tensorflow.keras import layers
+from tensorflow.keras import layers, callbacks
 
 from config import LSTM_PARAMS
+
+# Set seed for reproducibility
+tf.random.set_seed(42)
 
 
 def build_model(input_shape):
@@ -19,23 +24,21 @@ def build_model(input_shape):
     Build and compile the LSTM architecture.
 
     Architecture:
-        Input → LSTM(64) → Dense(32, ReLU) → Dense(1)
-
-    Args:
-        input_shape: Shape of a single input sample (sequence_length, n_features).
-
-    Returns:
-        Compiled Keras Sequential model.
+        Input → LSTM(64) → Dropout(0.2) → Dense(32, ReLU) → Dense(1)
     """
     model = keras.Sequential([
         layers.Input(shape=input_shape),
         layers.LSTM(LSTM_PARAMS["units"]),
+        layers.Dropout(0.2),
         layers.Dense(LSTM_PARAMS["dense_units"], activation="relu"),
         layers.Dense(1),
     ])
 
     model.compile(
-        optimizer=LSTM_PARAMS["optimizer"],
+        optimizer=keras.optimizers.Adam(
+            learning_rate=1e-3,
+            clipnorm=1.0,   # gradient clipping for stable training
+        ),
         loss=LSTM_PARAMS["loss"],
     )
 
@@ -44,33 +47,35 @@ def build_model(input_shape):
 
 def train(X_train_seq, y_train_seq):
     """
-    Scale data and train the LSTM model.
-
-    Args:
-        X_train_seq: 3D array of shape (n_samples, sequence_length, n_features).
-        y_train_seq: 1D array of target values.
-
-    Returns:
-        Tuple of (trained model, feature scaler, target scaler).
+    Scale data and train the LSTM model with EarlyStopping
+    and ReduceLROnPlateau callbacks.
     """
     scaler_X = StandardScaler()
     scaler_y = StandardScaler()
 
-    # Scale features
     n_samples, seq_len, n_features = X_train_seq.shape
     X_scaled = scaler_X.fit_transform(
         X_train_seq.reshape(-1, n_features)
     ).reshape(n_samples, seq_len, n_features)
 
-    # Scale target
     y_scaled = scaler_y.fit_transform(y_train_seq.reshape(-1, 1))
 
-    # Build and train
     model = build_model(input_shape=(seq_len, n_features))
+
+    cb = [
+        callbacks.EarlyStopping(
+            monitor="loss", patience=5, restore_best_weights=True
+        ),
+        callbacks.ReduceLROnPlateau(
+            monitor="loss", factor=0.5, patience=3, min_lr=1e-6
+        ),
+    ]
+
     model.fit(
         X_scaled, y_scaled,
         epochs=LSTM_PARAMS["epochs"],
         batch_size=LSTM_PARAMS["batch_size"],
+        callbacks=cb,
         verbose=1,
     )
 
@@ -78,16 +83,7 @@ def train(X_train_seq, y_train_seq):
 
 
 def predict(model_and_scalers, X_test_seq):
-    """
-    Generate and inverse-transform predictions.
-
-    Args:
-        model_and_scalers: Tuple of (model, scaler_X, scaler_y).
-        X_test_seq: 3D array of test sequences.
-
-    Returns:
-        Tuple of (predictions, inverse-transformed ground truth placeholder).
-    """
+    """Generate and inverse-transform predictions."""
     model, scaler_X, scaler_y = model_and_scalers
 
     n_samples, seq_len, n_features = X_test_seq.shape

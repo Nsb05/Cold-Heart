@@ -4,9 +4,10 @@ main.py — Cold-Start Energy Consumption Prediction Pipeline
 Entry point that orchestrates:
     1. Data loading and preprocessing
     2. Feature engineering
-    3. Model training (9 models)
-    4. Evaluation and comparison
-    5. Visualization
+    3. Cold-start train/test split (2019+2021 train → 2020 test)
+    4. Model training (9 models)
+    5. Evaluation and comparison
+    6. Visualization
 
 Usage:
     python main.py
@@ -15,13 +16,16 @@ All configuration is in config.py.
 """
 
 import os
+import random
 import warnings
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import tensorflow as tf
 
 from config import (
-    DATA_2019_PATH, DATA_2020_PATH, TARGET,
+    DATA_2019_PATH, DATA_2020_PATH, DATA_2021_PATH,
+    TARGET,
     RESULTS_DIR, PLOT_SAMPLES, FIGURE_DPI,
 )
 from src.data_loader import load_data
@@ -34,12 +38,19 @@ from src.models import gru_model, bilstm_model, hgboost_model
 
 warnings.filterwarnings("ignore")
 
+# Reproducibility seeds
+SEED = 42
+random.seed(SEED)
+np.random.seed(SEED)
+tf.random.set_seed(SEED)
+
 
 def print_header():
     """Print a stylized project header."""
     print("\n" + "=" * 60)
     print("  Cold-Start Energy Consumption Prediction")
-    print("  Train: 2019 │ Test: 2020 │ Target: t_kWh")
+    print("  Train: 2019 + 2021 │ Test: 2020 (unseen year)")
+    print(f"  Target: {TARGET}")
     print("=" * 60)
 
 
@@ -49,33 +60,44 @@ def run_pipeline():
     print_header()
 
     # --------------------------------------------------
-    # 1. LOAD DATA
+    # 1. LOAD DATASETS
     # --------------------------------------------------
     print("\n.....Loading datasets.....")
     df_2019 = load_data(DATA_2019_PATH)
     df_2020 = load_data(DATA_2020_PATH)
+    df_2021 = load_data(DATA_2021_PATH)
+
+    print(f"   2019 — {len(df_2019)} samples")
+    print(f"   2020 — {len(df_2020)} samples")
+    print(f"   2021 — {len(df_2021)} samples")
 
     # --------------------------------------------------
     # 2. FEATURE ENGINEERING
     # --------------------------------------------------
-    print("...Engineering features...")
+    print("\n...Engineering features...")
     df_2019 = add_features(df_2019)
     df_2020 = add_features(df_2020)
-
-    print(f"\n   2019 — {len(df_2019)} samples, mean {TARGET}: {df_2019[TARGET].mean():.4f}")
-    print(f"   2020 — {len(df_2020)} samples, mean {TARGET}: {df_2020[TARGET].mean():.4f}")
+    df_2021 = add_features(df_2021)
 
     # --------------------------------------------------
-    # 3. PREPARE TRAIN / TEST SPLITS
+    # 3. COLD-START SPLIT: Train on 2019+2021, Test on 2020
     # --------------------------------------------------
-    X_train = df_2019.drop(columns=[TARGET])
-    y_train = df_2019[TARGET]
-    X_test = df_2020.drop(columns=[TARGET])
-    y_test = df_2020[TARGET]
+    df_train = pd.concat([df_2019, df_2021]).sort_index()
+    df_test = df_2020
+
+    print(f"\n   Train set — {len(df_train)} samples (2019 + 2021)")
+    print(f"   Test  set — {len(df_test)} samples (2020 — unseen year)")
+    print(f"   Mean {TARGET} (train): {df_train[TARGET].mean():.4f}")
+    print(f"   Mean {TARGET} (test):  {df_test[TARGET].mean():.4f}")
+
+    X_train = df_train.drop(columns=[TARGET])
+    y_train = df_train[TARGET]
+    X_test = df_test.drop(columns=[TARGET])
+    y_test = df_test[TARGET]
 
     # Sequences for DL models
-    X_train_seq, y_train_seq = create_sequences(df_2019)
-    X_test_seq, y_test_seq = create_sequences(df_2020)
+    X_train_seq, y_train_seq = create_sequences(df_train)
+    X_test_seq, y_test_seq = create_sequences(df_test)
 
     # --------------------------------------------------
     # 4. TRAIN & EVALUATE ALL MODELS
@@ -149,8 +171,8 @@ def run_pipeline():
 
     # ---- 9. ARIMA ----
     print("\n...Training ARIMA...")
-    arima_fitted = arima_model.train(df_2019[TARGET])
-    pred_arima = arima_model.predict(arima_fitted, len(df_2020))
+    arima_fitted = arima_model.train(df_train[TARGET])
+    pred_arima = arima_model.predict(arima_fitted, len(df_test))
     pred_arima = pred_arima[:len(y_test)]
     y_test_arima = y_test.values[:len(pred_arima)]
     all_results["ARIMA"] = evaluate(y_test_arima, pred_arima)
@@ -173,7 +195,7 @@ def run_pipeline():
     # --------------------------------------------------
     os.makedirs(RESULTS_DIR, exist_ok=True)
 
-    # Plot 1: Prediction comparison (ML models)
+    # Plot 1: Prediction comparison
     fig, axes = plt.subplots(2, 1, figsize=(14, 10), dpi=FIGURE_DPI)
 
     # ML models
@@ -184,7 +206,7 @@ def run_pipeline():
         colors_ml
     ):
         axes[0].plot(pred[:PLOT_SAMPLES], label=name, alpha=0.8, color=color)
-    axes[0].set_title("ML Models — Cold-Start Prediction (Train: 2019 → Test: 2020)", fontsize=13)
+    axes[0].set_title("ML Models — Cold-Start Prediction (Train: 2019+2021 → Test: 2020)", fontsize=13)
     axes[0].set_ylabel("Energy (kWh)")
     axes[0].legend(loc="upper right")
     axes[0].grid(True, alpha=0.3)
@@ -224,7 +246,6 @@ def run_pipeline():
         ax.set_xticklabels(model_names, rotation=45, ha="right")
         ax.grid(axis="y", alpha=0.3)
 
-        # Add value labels on bars
         for bar, val in zip(bars, values):
             ax.text(
                 bar.get_x() + bar.get_width() / 2, bar.get_height(),

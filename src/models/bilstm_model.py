@@ -9,7 +9,7 @@ and future context within the lookback window.
 import numpy as np
 from sklearn.preprocessing import StandardScaler
 from tensorflow import keras
-from tensorflow.keras import layers
+from tensorflow.keras import layers, callbacks
 
 from config import BILSTM_PARAMS
 
@@ -19,23 +19,19 @@ def build_model(input_shape):
     Build and compile the Bidirectional LSTM architecture.
 
     Architecture:
-        Input → Bidirectional(LSTM(64)) → Dense(32, ReLU) → Dense(1)
-
-    Args:
-        input_shape: Shape of a single input sample (sequence_length, n_features).
-
-    Returns:
-        Compiled Keras Sequential model.
+        Input → Bidirectional(LSTM(64)) → Dropout(0.2)
+              → Dense(32, ReLU) → Dense(1)
     """
     model = keras.Sequential([
         layers.Input(shape=input_shape),
         layers.Bidirectional(layers.LSTM(BILSTM_PARAMS["units"])),
+        layers.Dropout(0.2),
         layers.Dense(BILSTM_PARAMS["dense_units"], activation="relu"),
         layers.Dense(1),
     ])
 
     model.compile(
-        optimizer=BILSTM_PARAMS["optimizer"],
+        optimizer=keras.optimizers.Adam(learning_rate=1e-3),
         loss=BILSTM_PARAMS["loss"],
     )
 
@@ -44,14 +40,8 @@ def build_model(input_shape):
 
 def train(X_train_seq, y_train_seq):
     """
-    Scale data and train the BiLSTM model.
-
-    Args:
-        X_train_seq: 3D array (n_samples, sequence_length, n_features).
-        y_train_seq: 1D array of target values.
-
-    Returns:
-        Tuple of (trained model, feature scaler, target scaler).
+    Scale data and train the BiLSTM model with EarlyStopping
+    and ReduceLROnPlateau callbacks.
     """
     scaler_X = StandardScaler()
     scaler_y = StandardScaler()
@@ -64,10 +54,21 @@ def train(X_train_seq, y_train_seq):
     y_scaled = scaler_y.fit_transform(y_train_seq.reshape(-1, 1))
 
     model = build_model(input_shape=(seq_len, n_features))
+
+    cb = [
+        callbacks.EarlyStopping(
+            monitor="loss", patience=5, restore_best_weights=True
+        ),
+        callbacks.ReduceLROnPlateau(
+            monitor="loss", factor=0.5, patience=3, min_lr=1e-6
+        ),
+    ]
+
     model.fit(
         X_scaled, y_scaled,
         epochs=BILSTM_PARAMS["epochs"],
         batch_size=BILSTM_PARAMS["batch_size"],
+        callbacks=cb,
         verbose=1,
     )
 
@@ -75,16 +76,7 @@ def train(X_train_seq, y_train_seq):
 
 
 def predict(model_and_scalers, X_test_seq):
-    """
-    Generate and inverse-transform predictions.
-
-    Args:
-        model_and_scalers: Tuple of (model, scaler_X, scaler_y).
-        X_test_seq: 3D array of test sequences.
-
-    Returns:
-        Array of inverse-transformed predictions.
-    """
+    """Generate and inverse-transform predictions."""
     model, scaler_X, scaler_y = model_and_scalers
 
     n_samples, seq_len, n_features = X_test_seq.shape

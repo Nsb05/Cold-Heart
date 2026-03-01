@@ -18,6 +18,10 @@ RESULTS_DIR = os.path.join(BASE_DIR, "results")
 
 DATA_2019_PATH = os.path.join(DATA_DIR, "CEEW - Smart meter data Mathura 2019.csv")
 DATA_2020_PATH = os.path.join(DATA_DIR, "CEEW - Smart meter data Mathura 2020.csv")
+DATA_2021_PATH = os.path.join(DATA_DIR, "SM Cleaned Data MH2021.csv")
+
+# Train / Test split ratio (fraction used for testing)
+TEST_SIZE = 0.2
 
 # ============================================================
 # TARGET VARIABLE
@@ -49,9 +53,9 @@ XGBOOST_PARAMS = {
 
 # --- SVR ---
 SVR_PARAMS = {
-    "kernel": "linear",
-    "C": 100,
-    "epsilon": 0.01,
+    "kernel": "rbf",
+    "C": 10,
+    "epsilon": 0.1,
     "gamma": "scale",
 }
 
@@ -59,7 +63,7 @@ SVR_PARAMS = {
 LSTM_PARAMS = {
     "units": 64,
     "dense_units": 32,
-    "epochs": 30,
+    "epochs": 80,
     "batch_size": 64,
     "optimizer": "adam",
     "loss": "mse",
@@ -71,7 +75,7 @@ CNN_PARAMS = {
     "kernel_size": 3,
     "pool_size": 2,
     "dense_units": 32,
-    "epochs": 30,
+    "epochs": 80,
     "batch_size": 64,
     "optimizer": "adam",
     "loss": "mse",
@@ -81,7 +85,7 @@ CNN_PARAMS = {
 GRU_PARAMS = {
     "units": 64,
     "dense_units": 32,
-    "epochs": 30,
+    "epochs": 80,
     "batch_size": 64,
     "optimizer": "adam",
     "loss": "mse",
@@ -91,7 +95,7 @@ GRU_PARAMS = {
 BILSTM_PARAMS = {
     "units": 64,
     "dense_units": 32,
-    "epochs": 30,
+    "epochs": 80,
     "batch_size": 64,
     "optimizer": "adam",
     "loss": "mse",
@@ -106,8 +110,16 @@ HGBOOST_PARAMS = {
     "verbose": 3,
 }
 
-# --- ARIMA ---
-ARIMA_ORDER = (5, 1, 2)
+# --- ARIMA (auto order selection) ---
+ARIMA_AUTO_PARAMS = {
+    "start_p": 1,
+    "start_q": 1,
+    "max_p": 5,
+    "max_q": 5,
+    "d": None,           # auto-detect differencing order
+    "seasonal": False,
+    "stepwise": True,    # faster search
+}
 
 # ============================================================
 # PLOTTING
