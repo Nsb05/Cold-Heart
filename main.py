@@ -11,8 +11,6 @@ Entry point that orchestrates:
 
 Usage:
     python main.py
-
-All configuration is in config.py.
 """
 
 import os
