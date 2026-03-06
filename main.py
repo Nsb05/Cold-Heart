@@ -47,7 +47,7 @@ def print_header():
     """Print a stylized project header."""
     print("\n" + "=" * 60)
     print("  Cold-Start Energy Consumption Prediction")
-    print("  Train: 2019 + 2021 │ Test: 2020 (unseen year)")
+    print("  Train: 2019 + 2021 | Test: 2020 (unseen year)")
     print(f"  Target: {TARGET}")
     print("=" * 60)
 
@@ -256,6 +256,76 @@ def run_pipeline():
     plt.savefig(bar_path, bbox_inches="tight")
     print(f" Metrics bar chart saved to: {bar_path}")
     plt.close()
+
+    # --------------------------------------------------
+    # Plot 3: Individual Actual vs Predicted for each model
+    # --------------------------------------------------
+    print("\n...Generating individual Actual vs Predicted plots...")
+
+    # Define all models with their actual/predicted arrays and accent color
+    individual_models = [
+        ("Linear Regression", y_test.values,   pred_lr,      "#e74c3c"),
+        ("XGBoost",           y_test.values,   pred_xgb,     "#3498db"),
+        ("SVR",               y_test.values,   pred_svr,     "#2ecc71"),
+        ("LSTM",              y_test_seq,       pred_lstm,    "#9b59b6"),
+        ("CNN (1D)",          y_test_seq,       pred_cnn,     "#e67e22"),
+        ("GRU",               y_test_seq,       pred_gru,     "#1abc9c"),
+        ("BiLSTM",            y_test_seq,       pred_bilstm,  "#e91e63"),
+        ("HGBoost",           y_test.values,   pred_hgb,     "#f39c12"),
+        ("ARIMA",             y_test_arima,     pred_arima,   "#607d8b"),
+    ]
+
+    for model_name, actual, predicted, color in individual_models:
+        actual_arr = np.asarray(actual).flatten()
+        pred_arr = np.asarray(predicted).flatten()
+        n = min(len(actual_arr), len(pred_arr))
+        actual_arr = actual_arr[:n]
+        pred_arr = pred_arr[:n]
+
+        fig, axes = plt.subplots(1, 2, figsize=(16, 6), dpi=FIGURE_DPI)
+
+        # Left: Time-series line comparison
+        samples = min(PLOT_SAMPLES, n)
+        axes[0].plot(actual_arr[:samples], label="Actual", color="#2c3e50",
+                     linewidth=2, zorder=3)
+        axes[0].plot(pred_arr[:samples], label="Predicted", color=color,
+                     linewidth=1.8, alpha=0.85, zorder=2)
+        axes[0].fill_between(
+            range(samples),
+            actual_arr[:samples], pred_arr[:samples],
+            alpha=0.12, color=color
+        )
+        axes[0].set_title(f"{model_name} — Actual vs Predicted (Time Series)",
+                          fontsize=13, fontweight="bold")
+        axes[0].set_xlabel("Sample Index")
+        axes[0].set_ylabel("Energy (kWh)")
+        axes[0].legend(loc="upper right")
+        axes[0].grid(True, alpha=0.3)
+
+        # Right: Scatter plot with ideal line
+        axes[1].scatter(actual_arr, pred_arr, alpha=0.4, s=18, color=color,
+                        edgecolors="white", linewidths=0.3, label="Predictions")
+        lo = min(actual_arr.min(), pred_arr.min())
+        hi = max(actual_arr.max(), pred_arr.max())
+        margin = (hi - lo) * 0.05
+        axes[1].plot([lo - margin, hi + margin], [lo - margin, hi + margin],
+                     "k--", linewidth=1.2, label="Ideal (y = x)")
+        axes[1].set_xlim(lo - margin, hi + margin)
+        axes[1].set_ylim(lo - margin, hi + margin)
+        axes[1].set_title(f"{model_name} — Actual vs Predicted (Scatter)",
+                          fontsize=13, fontweight="bold")
+        axes[1].set_xlabel("Actual Energy (kWh)")
+        axes[1].set_ylabel("Predicted Energy (kWh)")
+        axes[1].legend(loc="upper left")
+        axes[1].grid(True, alpha=0.3)
+        axes[1].set_aspect("equal", adjustable="box")
+
+        plt.tight_layout()
+        safe_name = model_name.replace(" ", "_").replace("(", "").replace(")", "")
+        ind_path = os.path.join(RESULTS_DIR, f"actual_vs_predicted_{safe_name}.png")
+        plt.savefig(ind_path, bbox_inches="tight")
+        plt.close()
+        print(f"   {model_name} plot saved to: {ind_path}")
 
     # Save results to CSV
     csv_path = os.path.join(RESULTS_DIR, "model_results.csv")
