@@ -59,6 +59,19 @@ SVR_PARAMS = {
     "gamma": "scale",
 }
 
+# --- Ridge Regression ---
+RIDGE_PARAMS = {
+    "alpha": 1.0,
+    "random_state": 42,
+}
+
+# --- Lasso Regression ---
+LASSO_PARAMS = {
+    "alpha": 0.01,
+    "max_iter": 10000,
+    "random_state": 42,
+}
+
 # --- LSTM ---
 LSTM_PARAMS = {
     "units": 64,
@@ -67,6 +80,20 @@ LSTM_PARAMS = {
     "batch_size": 64,
     "optimizer": "adam",
     "loss": "mse",
+}
+
+# --- LSTM Transfer Learning (Progressive Unfreezing) ---
+LSTM_TRANSFER_PARAMS = {
+    "units": 64,
+    "dense_units": 32,
+    "pretrain_epochs": 50,       # Phase 1: pre-train on source (2019)
+    "finetune_head_epochs": 20,  # Phase 2: freeze LSTM, fine-tune dense on target
+    "finetune_full_epochs": 20,  # Phase 3: unfreeze all, gentle full fine-tune
+    "batch_size": 64,
+    "optimizer": "adam",
+    "loss": "mse",
+    "finetune_head_lr": 5e-4,    # Phase 2 LR (dense layers only)
+    "finetune_full_lr": 1e-5,    # Phase 3 LR (very low, full model)
 }
 
 # --- CNN ---

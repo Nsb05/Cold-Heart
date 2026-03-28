@@ -5,7 +5,7 @@ Entry point that orchestrates:
     1. Data loading and preprocessing
     2. Feature engineering
     3. Cold-start train/test split (2019+2021 train → 2020 test)
-    4. Model training (9 models)
+    4. Model training (11 models)
     5. Evaluation and comparison
     6. Visualization
 
@@ -16,6 +16,7 @@ Usage:
 import os
 import random
 import warnings
+import joblib
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -24,15 +25,19 @@ import tensorflow as tf
 from config import (
     DATA_2019_PATH, DATA_2020_PATH, DATA_2021_PATH,
     TARGET,
-    RESULTS_DIR, PLOT_SAMPLES, FIGURE_DPI,
+    RESULTS_DIR, PLOT_SAMPLES, FIGURE_DPI, BASE_DIR,
 )
+
+SAVED_MODELS_DIR = os.path.join(BASE_DIR, "saved_models")
 from src.data_loader import load_data
 from src.feature_engineering import add_features, create_sequences
 from src.metrics import evaluate, print_metrics
 
 from src.models import linear_reg, xgboost_model, svr_model
+from src.models import ridge_model, lasso_model
 from src.models import lstm_model, cnn_model, arima_model
 from src.models import gru_model, bilstm_model, hgboost_model
+from src.models import lstm_transfer_model
 
 warnings.filterwarnings("ignore")
 
@@ -97,6 +102,10 @@ def run_pipeline():
     X_train_seq, y_train_seq = create_sequences(df_train)
     X_test_seq, y_test_seq = create_sequences(df_test)
 
+    # Separate sequences for Transfer Learning (source=2019, target=2021)
+    X_2019_seq, y_2019_seq = create_sequences(df_2019)
+    X_2021_seq, y_2021_seq = create_sequences(df_2021)
+
     # --------------------------------------------------
     # 4. TRAIN & EVALUATE ALL MODELS
     # --------------------------------------------------
@@ -110,6 +119,22 @@ def run_pipeline():
     all_results["Linear Regression"] = evaluate(y_test, pred_lr)
     predictions["Linear"] = pred_lr
     print_metrics(all_results["Linear Regression"], "Linear Regression")
+
+    # ---- 1b. Ridge Regression ----
+    print("\n...Training Ridge Regression...")
+    ridge_trained = ridge_model.train(X_train, y_train)
+    pred_ridge = ridge_model.predict(ridge_trained, X_test)
+    all_results["Ridge Regression"] = evaluate(y_test, pred_ridge)
+    predictions["Ridge"] = pred_ridge
+    print_metrics(all_results["Ridge Regression"], "Ridge Regression")
+
+    # ---- 1c. Lasso Regression ----
+    print("\n...Training Lasso Regression...")
+    lasso_trained = lasso_model.train(X_train, y_train)
+    pred_lasso = lasso_model.predict(lasso_trained, X_test)
+    all_results["Lasso Regression"] = evaluate(y_test, pred_lasso)
+    predictions["Lasso"] = pred_lasso
+    print_metrics(all_results["Lasso Regression"], "Lasso Regression")
 
     # ---- 2. XGBoost ----
     print("\n...Training XGBoost...")
@@ -134,6 +159,16 @@ def run_pipeline():
     all_results["LSTM"] = evaluate(y_test_seq, pred_lstm)
     predictions["LSTM"] = pred_lstm
     print_metrics(all_results["LSTM"], "LSTM")
+
+    # ---- 4b. Transfer LSTM ----
+    print("\n...Training Transfer Learning LSTM...")
+    tl_lstm_trained = lstm_transfer_model.train(
+        X_2019_seq, y_2019_seq, X_2021_seq, y_2021_seq
+    )
+    pred_tl_lstm = lstm_transfer_model.predict(tl_lstm_trained, X_test_seq)
+    all_results["Transfer LSTM"] = evaluate(y_test_seq, pred_tl_lstm)
+    predictions["Transfer LSTM"] = pred_tl_lstm
+    print_metrics(all_results["Transfer LSTM"], "Transfer LSTM")
 
     # ---- 5. CNN ----
     print("\n...Training CNN (1D)...")
@@ -198,9 +233,10 @@ def run_pipeline():
 
     # ML models
     axes[0].plot(y_test.values[:PLOT_SAMPLES], label="Actual", color="#2c3e50", linewidth=2)
-    colors_ml = ["#e74c3c", "#3498db", "#2ecc71", "#f39c12"]
+    colors_ml = ["#e74c3c", "#ff6f61", "#d4a017", "#3498db", "#2ecc71", "#f39c12"]
     for (name, pred), color in zip(
-        [("Linear", pred_lr), ("XGBoost", pred_xgb), ("SVR", pred_svr), ("HGBoost", pred_hgb)],
+        [("Linear", pred_lr), ("Ridge", pred_ridge), ("Lasso", pred_lasso),
+         ("XGBoost", pred_xgb), ("SVR", pred_svr), ("HGBoost", pred_hgb)],
         colors_ml
     ):
         axes[0].plot(pred[:PLOT_SAMPLES], label=name, alpha=0.8, color=color)
@@ -211,9 +247,9 @@ def run_pipeline():
 
     # DL models
     axes[1].plot(y_test_seq[:PLOT_SAMPLES], label="Actual", color="#2c3e50", linewidth=2)
-    colors_dl = ["#9b59b6", "#e67e22", "#1abc9c", "#e91e63"]
+    colors_dl = ["#9b59b6", "#e67e22", "#1abc9c", "#e91e63", "#00bcd4"]
     for (name, pred), color in zip(
-        [("LSTM", pred_lstm), ("CNN", pred_cnn), ("GRU", pred_gru), ("BiLSTM", pred_bilstm)],
+        [("LSTM", pred_lstm), ("CNN", pred_cnn), ("GRU", pred_gru), ("BiLSTM", pred_bilstm), ("Transfer LSTM", pred_tl_lstm)],
         colors_dl
     ):
         axes[1].plot(pred[:PLOT_SAMPLES], label=name, alpha=0.8, color=color)
@@ -234,8 +270,9 @@ def run_pipeline():
     fig, axes = plt.subplots(1, 3, figsize=(16, 5), dpi=FIGURE_DPI)
 
     model_names = list(all_results.keys())
-    colors_bar = ["#e74c3c", "#3498db", "#2ecc71", "#9b59b6", "#e67e22",
-                  "#1abc9c", "#e91e63", "#f39c12", "#607d8b"]
+    colors_bar = ["#e74c3c", "#ff6f61", "#d4a017", "#3498db", "#2ecc71",
+                  "#9b59b6", "#00bcd4", "#e67e22", "#1abc9c", "#e91e63",
+                  "#f39c12", "#607d8b"]
 
     for ax, metric in zip(axes, ["MAE", "RMSE", "R2"]):
         values = [all_results[m][metric] for m in model_names]
@@ -265,12 +302,15 @@ def run_pipeline():
     # Define all models with their actual/predicted arrays and accent color
     individual_models = [
         ("Linear Regression", y_test.values,   pred_lr,      "#e74c3c"),
+        ("Ridge Regression",  y_test.values,   pred_ridge,   "#ff6f61"),
+        ("Lasso Regression",  y_test.values,   pred_lasso,   "#d4a017"),
         ("XGBoost",           y_test.values,   pred_xgb,     "#3498db"),
         ("SVR",               y_test.values,   pred_svr,     "#2ecc71"),
         ("LSTM",              y_test_seq,       pred_lstm,    "#9b59b6"),
         ("CNN (1D)",          y_test_seq,       pred_cnn,     "#e67e22"),
         ("GRU",               y_test_seq,       pred_gru,     "#1abc9c"),
         ("BiLSTM",            y_test_seq,       pred_bilstm,  "#e91e63"),
+        ("Transfer LSTM",     y_test_seq,       pred_tl_lstm, "#00bcd4"),
         ("HGBoost",           y_test.values,   pred_hgb,     "#f39c12"),
         ("ARIMA",             y_test_arima,     pred_arima,   "#607d8b"),
     ]
@@ -327,11 +367,116 @@ def run_pipeline():
         plt.close()
         print(f"   {model_name} plot saved to: {ind_path}")
 
+    # --------------------------------------------------
+    # Plot 4: LR vs Ridge vs Lasso Comparison
+    # --------------------------------------------------
+    print("\n...Generating LR vs Ridge vs Lasso comparison plot...")
+
+    lr_family = {
+        "Linear Regression": all_results["Linear Regression"],
+        "Ridge Regression":  all_results["Ridge Regression"],
+        "Lasso Regression":  all_results["Lasso Regression"],
+    }
+    lr_names = list(lr_family.keys())
+    lr_colors = ["#e74c3c", "#ff6f61", "#d4a017"]
+
+    fig, axes = plt.subplots(2, 2, figsize=(16, 12), dpi=FIGURE_DPI)
+
+    # (a) Time-series overlay
+    ax = axes[0, 0]
+    samples = min(PLOT_SAMPLES, len(pred_lr))
+    ax.plot(y_test.values[:samples], label="Actual", color="#2c3e50", linewidth=2)
+    for (name, pred), color in zip(
+        [("Linear", pred_lr), ("Ridge", pred_ridge), ("Lasso", pred_lasso)],
+        lr_colors
+    ):
+        ax.plot(pred[:samples], label=name, alpha=0.85, color=color, linewidth=1.5)
+    ax.set_title("LR vs Ridge vs Lasso — Time Series Comparison", fontsize=13, fontweight="bold")
+    ax.set_xlabel("Hour")
+    ax.set_ylabel("Energy (kWh)")
+    ax.legend(loc="upper right")
+    ax.grid(True, alpha=0.3)
+
+    # (b) Bar chart per metric
+    metrics_to_plot = ["MAE", "RMSE", "R2"]
+    for idx, metric in enumerate(metrics_to_plot):
+        ax = axes[(idx + 1) // 2, (idx + 1) % 2]
+        vals = [lr_family[m][metric] for m in lr_names]
+        bars = ax.bar(lr_names, vals, color=lr_colors, edgecolor="white", linewidth=1.2)
+        ax.set_title(metric, fontsize=14, fontweight="bold")
+        ax.set_xticklabels(lr_names, rotation=20, ha="right")
+        ax.grid(axis="y", alpha=0.3)
+        for bar, val in zip(bars, vals):
+            ax.text(
+                bar.get_x() + bar.get_width() / 2, bar.get_height(),
+                f"{val}", ha="center", va="bottom", fontsize=11, fontweight="bold"
+            )
+
+    plt.suptitle("Linear Regression Family — Performance Comparison",
+                 fontsize=15, fontweight="bold", y=1.01)
+    plt.tight_layout()
+
+    lr_compare_path = os.path.join(RESULTS_DIR, "lr_ridge_lasso_comparison.png")
+    plt.savefig(lr_compare_path, bbox_inches="tight")
+    print(f"   LR family comparison saved to: {lr_compare_path}")
+    plt.close()
+
     # Save results to CSV
     csv_path = os.path.join(RESULTS_DIR, "model_results.csv")
     summary_df.to_csv(csv_path)
     print(f" Results CSV saved to: {csv_path}")
 
+    # --------------------------------------------------
+    # 7. SAVE TRAINED MODELS & TEST DATA FOR GUI
+    # --------------------------------------------------
+    print("\n...Saving trained models for GUI...")
+    os.makedirs(SAVED_MODELS_DIR, exist_ok=True)
+
+    # --- Save test data ---
+    np.savez(
+        os.path.join(SAVED_MODELS_DIR, "test_data.npz"),
+        X_test=X_test.values,
+        y_test=y_test.values,
+        X_test_seq=X_test_seq,
+        y_test_seq=y_test_seq,
+        y_test_arima=y_test_arima,
+    )
+    # Save feature names for custom-input panel
+    joblib.dump(list(X_test.columns), os.path.join(SAVED_MODELS_DIR, "feature_names.pkl"))
+
+    # --- Simple sklearn/xgboost models (just the model object) ---
+    joblib.dump(lr_model,   os.path.join(SAVED_MODELS_DIR, "linear_reg.pkl"))
+    joblib.dump(ridge_trained, os.path.join(SAVED_MODELS_DIR, "ridge.pkl"))
+    joblib.dump(lasso_trained, os.path.join(SAVED_MODELS_DIR, "lasso.pkl"))
+    joblib.dump(xgb_model,  os.path.join(SAVED_MODELS_DIR, "xgboost.pkl"))
+    joblib.dump(hgb_model,  os.path.join(SAVED_MODELS_DIR, "hgboost.pkl"))
+
+    # --- SVR (model + scalers) ---
+    joblib.dump(svr_trained, os.path.join(SAVED_MODELS_DIR, "svr.pkl"))
+
+    # --- Deep learning models (Keras model + scalers) ---
+    for name, model_tuple in [
+        ("lstm", lstm_trained),
+        ("gru", gru_trained),
+        ("bilstm", bilstm_trained),
+        ("cnn", cnn_trained),
+        ("transfer_lstm", tl_lstm_trained),
+    ]:
+        keras_model, sx, sy = model_tuple
+        keras_model.save(os.path.join(SAVED_MODELS_DIR, f"{name}_model.keras"))
+        joblib.dump((sx, sy), os.path.join(SAVED_MODELS_DIR, f"{name}_scalers.pkl"))
+
+    # --- ARIMA ---
+    joblib.dump(arima_fitted, os.path.join(SAVED_MODELS_DIR, "arima.pkl"))
+
+    # --- Save predictions for quick loading ---
+    joblib.dump(predictions, os.path.join(SAVED_MODELS_DIR, "predictions.pkl"))
+    joblib.dump(all_results, os.path.join(SAVED_MODELS_DIR, "all_results.pkl"))
+
+    # Save ARIMA predictions separately (different y_test length)
+    joblib.dump(pred_arima, os.path.join(SAVED_MODELS_DIR, "pred_arima.pkl"))
+
+    print(f"   All models saved to: {SAVED_MODELS_DIR}")
     print("\n Pipeline complete!\n")
 
 
