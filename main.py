@@ -299,7 +299,6 @@ def run_pipeline():
     # --------------------------------------------------
     print("\n...Generating individual Actual vs Predicted plots...")
 
-    # Define all models with their actual/predicted arrays and accent color
     individual_models = [
         ("Linear Regression", y_test.values,   pred_lr,      "#e74c3c"),
         ("Ridge Regression",  y_test.values,   pred_ridge,   "#ff6f61"),
@@ -421,7 +420,6 @@ def run_pipeline():
     print(f"   LR family comparison saved to: {lr_compare_path}")
     plt.close()
 
-    # Save results to CSV
     csv_path = os.path.join(RESULTS_DIR, "model_results.csv")
     summary_df.to_csv(csv_path)
     print(f" Results CSV saved to: {csv_path}")
@@ -432,7 +430,6 @@ def run_pipeline():
     print("\n...Saving trained models for GUI...")
     os.makedirs(SAVED_MODELS_DIR, exist_ok=True)
 
-    # --- Save test data ---
     np.savez(
         os.path.join(SAVED_MODELS_DIR, "test_data.npz"),
         X_test=X_test.values,
@@ -441,20 +438,17 @@ def run_pipeline():
         y_test_seq=y_test_seq,
         y_test_arima=y_test_arima,
     )
-    # Save feature names for custom-input panel
+
     joblib.dump(list(X_test.columns), os.path.join(SAVED_MODELS_DIR, "feature_names.pkl"))
 
-    # --- Simple sklearn/xgboost models (just the model object) ---
     joblib.dump(lr_model,   os.path.join(SAVED_MODELS_DIR, "linear_reg.pkl"))
     joblib.dump(ridge_trained, os.path.join(SAVED_MODELS_DIR, "ridge.pkl"))
     joblib.dump(lasso_trained, os.path.join(SAVED_MODELS_DIR, "lasso.pkl"))
     joblib.dump(xgb_model,  os.path.join(SAVED_MODELS_DIR, "xgboost.pkl"))
     joblib.dump(hgb_model,  os.path.join(SAVED_MODELS_DIR, "hgboost.pkl"))
-
-    # --- SVR (model + scalers) ---
     joblib.dump(svr_trained, os.path.join(SAVED_MODELS_DIR, "svr.pkl"))
 
-    # --- Deep learning models (Keras model + scalers) ---
+
     for name, model_tuple in [
         ("lstm", lstm_trained),
         ("gru", gru_trained),
@@ -466,14 +460,11 @@ def run_pipeline():
         keras_model.save(os.path.join(SAVED_MODELS_DIR, f"{name}_model.keras"))
         joblib.dump((sx, sy), os.path.join(SAVED_MODELS_DIR, f"{name}_scalers.pkl"))
 
-    # --- ARIMA ---
     joblib.dump(arima_fitted, os.path.join(SAVED_MODELS_DIR, "arima.pkl"))
 
-    # --- Save predictions for quick loading ---
     joblib.dump(predictions, os.path.join(SAVED_MODELS_DIR, "predictions.pkl"))
     joblib.dump(all_results, os.path.join(SAVED_MODELS_DIR, "all_results.pkl"))
 
-    # Save ARIMA predictions separately (different y_test length)
     joblib.dump(pred_arima, os.path.join(SAVED_MODELS_DIR, "pred_arima.pkl"))
 
     print(f"   All models saved to: {SAVED_MODELS_DIR}")

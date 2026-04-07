@@ -4,7 +4,6 @@ Data loading and preprocessing module.
 Handles reading raw CSV files, time column detection,
 datetime parsing, hourly resampling, and missing value imputation.
 """
-
 import numpy as np
 import pandas as pd
 
@@ -30,8 +29,6 @@ def load_data(path: str) -> pd.DataFrame:
         Cleaned DataFrame with a DatetimeIndex and hourly resolution.
     """
     df = pd.read_csv(path)
-
-    # Auto-detect time column
     time_col = [
         col for col in df.columns
         if "time" in col.lower() or "date" in col.lower()
@@ -41,9 +38,7 @@ def load_data(path: str) -> pd.DataFrame:
     df = df.sort_values(time_col)
     df = df.set_index(time_col)
 
-    # Keep numeric columns only
     df = df.select_dtypes(include=[np.number])
-
     # Resample to hourly and interpolate gaps
     df = df.resample(RESAMPLE_FREQ).mean()
     df = df.interpolate()
